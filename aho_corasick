@@ -1,0 +1,236 @@
+// Code tiré de https://www.geeksforgeeks.org/aho-corasick-algorithm-pattern-searching/
+
+// C++ program for implementation of Aho Corasick algorithm
+// for string matching
+using namespace std;
+#include <bits/stdc++.h>
+
+// Max number of states in the matching machine.
+// Should be equal to the sum of the length of all keywords + nom de motifs.
+const int MAXS = 19;
+
+// Nombre de caractères dans l'alphabet considéré
+const int MAXC = 26;
+
+// OUTPUT FUNCTION IS IMPLEMENTED USING out[]
+// Bit i in this mask is one if the word with index i
+// appears when the machine enters this state.
+int out[MAXS]; // Tableau qui stocke l'output de la matching machine
+
+// FAILURE FUNCTION IS IMPLEMENTED USING f[]
+int f[MAXS];
+
+// GOTO FUNCTION (OR TRIE) IS IMPLEMENTED USING g[][]
+int g[MAXS][MAXC];
+
+// Builds the string matching machine.
+// arr - array of words. The index of each keyword is important:
+//		 "out[state] & (1 << i)" is > 0 if we just found word[i]
+//		 in the text.
+// Returns the number of states that the built machine has.
+// States are numbered 0 up to the return value - 1, inclusive.
+
+/* Les "états" de la fonction correspondent aux noeuds du dictionnaire */
+int buildMatchingMachine(string arr[], int k)
+{
+	// Initialise la fonction output à 0
+	memset(out, 0, sizeof out);
+
+	// Initialise la fonction goto à -1
+	memset(g, -1, sizeof g);
+
+	// Initialisation de la racine (état 1 de la fonction)
+	int states = 1;
+
+	/* Construction du dictionnaire des motifs */
+	for (int i = 0; i <= k; ++i){
+		// Le motif est défini comme une constante
+		const string &word = arr[i];
+		int currentState = 0;
+		// Parcours le motif et insère les caractères dans le dictionnaire
+		for (int j = 0; j < word.size(); ++j){
+			/* On soustrait la valeur ASCII de 'a' pour initialiser ch à 0.
+			L'indice de chaque lettre sera donc sa place dans l'alphabet-1 */
+			int ch = word[j] - 'a';
+			/* Si le noeud 'ch' n'existe pas, créé un nouvel état (= un
+			nouveau noeud) */
+			if (g[currentState][ch] == -1)
+				g[currentState][ch] = states++;
+			currentState = g[currentState][ch];
+		}
+		// Ajout du motif finalisé dans la fonction out
+		out[currentState] |= (1 << i);
+	}
+	// Affichage du dictionnaire
+	for (int x=0;x<MAXS;++x){
+		for (int y=0;y<MAXC;++y)
+			cout<<g[x][y]<<" | ";
+		cout<<endl;
+	}
+
+	/* Pour tous les caractères dont le vecteur ne part pas de la racine (ou de l'état 0), ajout d'un vecteur "goto" jusqu'à la racine. */
+	for (int ch = 0; ch < MAXC; ++ch)
+		if (g[0][ch] == -1)
+			g[0][ch] = 0;
+
+	/* Construction de la fonction erreur */
+
+	// Initialisation de la fonction erreur
+	memset(f, -1, sizeof f);
+
+	// Failure function is computed in breadth first order
+	// using a queue
+	queue<int> q;
+
+	// Iterate over every possible input
+	for (int ch = 0; ch < MAXC; ++ch){
+		// All nodes of depth 1 have failure function value
+		// as 0. For example, in above diagram we move to 0
+		// from states 1 and 3.
+		if (g[0][ch] != 0){
+			f[g[0][ch]] = 0;
+			q.push(g[0][ch]);
+		}
+	}
+
+	// Now queue has states 1 and 3
+	while (q.size()){
+		// Remove the front state from queue
+		int state = q.front();
+		q.pop();
+		// For the removed state, find failure function for
+		// all those characters for which goto function is
+		// not defined.
+		for (int ch = 0; ch <= MAXC; ++ch){
+			// If goto function is defined for character 'ch'
+			// and 'state'
+			if (g[state][ch] != -1){
+				// Find failure state of removed state
+				int failure = f[state];
+				// Find the deepest node labeled by proper
+				// suffix of string from root to current
+				// state.
+				while (g[failure][ch] == -1)
+					failure = f[failure];
+				failure = g[failure][ch];
+				f[g[state][ch]] = failure;
+				// Merge output values
+				out[g[state][ch]] |= out[failure];
+				// Insert the next level node (of Trie) in Queue
+				q.push(g[state][ch]);
+			}
+		}
+	}
+	return states;
+}
+
+// Returns the next state the machine will transition to using goto
+// and failure functions.
+// currentState - The current state of the machine. Must be between
+//			 0 and the number of states - 1, inclusive.
+// nextInput - The next character that enters into the machine.
+int findNextState(int currentState, char nextInput)
+{
+	int answer = currentState;
+	int ch = nextInput - 'a';
+
+	// If goto is not defined, use failure function
+	while (g[answer][ch] == -1)
+		answer = f[answer];
+
+	return g[answer][ch];
+}
+
+// Fonction de recherche des motifs dans le texte.
+void searchWords(string arr[], int k, string text)
+{
+	// Construction de l'arbre
+	buildMatchingMachine(arr, k);
+
+	// Initialisation de l'état
+	int currentState = 0;
+
+	// Traverse the text through the built machine to find
+	// all occurrences of words in arr[]
+	for (int i = 0; i < text.size(); ++i){
+		currentState = findNextState(currentState, text[i]);
+		// If match not found, move to next state
+		if (out[currentState] == 0)
+			continue;
+		// Match found, print all matching words of arr[]
+		// using output function.
+		for (int j = 0; j < k; ++j){
+			if (out[currentState] & (1 << j)){
+                // Ajoute 1 au motif et au texte car on compte à partir de 1
+				cout << "Word " << arr[j] << " appears from "
+					<< i - arr[j].size() + 2 << " to " << i + 1 << endl;
+			}
+		}
+	}
+}
+
+int main(int argc, char** argv)
+{
+    // Lecture du motif
+	string nomFicMotif (argv[1]);
+    ifstream IfFicMotif (nomFicMotif.c_str(), ios::in);
+    if (!IfFicMotif){
+        cout<<endl<<"Impossible d'ouvrir le fichier : "
+        <<nomFicMotif<<endl<<endl;
+        return(0);
+    }
+	std::vector<string> vec;
+    string P;
+    char c;
+	int i = 0;
+	int m = 0;
+    // On lit le fichier caractère par caractère
+	while(IfFicMotif.get(c)){
+		if (c == ';'){
+			m++;
+			// On élimine l'éventuel retour à la ligne en fin de motif
+			if (P.size()>1 && (int)P[P.size()-1]==10)
+				P=P.substr(0,P.size()-1);
+			// On ajoute le motif P au vecteur
+			vec.push_back(P);
+		}	
+		else{
+			if (i != m){
+				P = c;
+				i++;
+			}
+			else
+				P += c;
+		}
+	}
+	// On stock le motif dans la collection à partir du vecteur
+	string arr[m];
+	for (int x=0; x<m; ++x)
+		arr[x] = vec[x];
+
+	// Lecture du texte
+	string nomFicTexte(argv[2]);
+    ifstream IfFicTexte (nomFicTexte.c_str(), ios::in);
+    if (!IfFicTexte){
+        cout<<endl<<"Impossible d'ouvrir le fichier : "
+        <<nomFicTexte<<endl<<endl;
+        return(0);
+    }
+	string text;
+    // On lit le fichier caractère par caractère
+    while(IfFicTexte.get(c))
+        text += c;
+    // On élimine l'éventuel retour à la ligne en fin de fichier
+    if (text.size()>1 && (int)text[text.size()-1]==10)
+        text=text.substr(0,text.size()-1);
+
+	/* Stock le nombre de motif contenus dans le fichier donné en argument.
+	- sizeof retourne la taille de l'objet donné en paramètre.
+	- On divise donc la taille de l'objet "array" totale par la taille d'un
+	élément de l'objet "array" (qui sera toujours le même) */
+    int k = sizeof(arr)/sizeof(arr[0]);
+
+	searchWords(arr, k, text);
+
+	return 0;
+}
