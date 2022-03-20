@@ -1,0 +1,100 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Sat Mar 19 11:25:53 2022
+
+@authors: Célia AIT OUARAB, Alizee ARNOUX and Chloé MASON
+"""
+
+import sys
+import numpy as np
+from anytree import Node
+from anytree.exporter import DotExporter
+
+MAXSIZE = 26 # alphabet size
+
+def create_node(motif, tree, j, i, root):
+    """Store character and motif position in a matrix.
+
+    - Characters that are represented multiple times are stored on consecutive rows.
+    - Each row represents a motif given in argument (except in multiple character case).
+    - Each column represents a character from the alphabet.
+    """
+    for char in motif:
+        # Extract ASCII number of a character, normalize by the value of 'a'.
+        index = ord(char) - ord('a')
+
+        # If the character is not already present in the motif,
+        # add the node number to the matrix and shift to next row.
+        if tree[i][index] == 0:
+            tree[i][index] += j+1
+            j += 1
+        # If the character is already present and indexed in the matrix,
+        # moves to the next row and index the character.
+        else:
+            i += 1
+            tree[i][index] += j+1
+            j += 1
+
+    return tree, j
+
+def create_graph(motif, root, i, k, motifList):
+    char = 0
+    while char < len(motif):
+        y = 0
+        nextChar = False
+        if char == 0 and i != 0:
+            x = 0
+            while x < i:
+                while y <= min(len(motifList[x])-1,len(motif)-1):
+                    if motif[y] == motifList[x][y]:
+                        y += 1
+                        char += 1
+                        i = motifList.index(motifList[x])
+                        nextChar = True
+                    else:
+                        break
+                x += 1
+        if char == 0 and nextChar is False:
+            globals()[f'{k} : {motif[char]}'] = Node(f'{k} : {motif[char]}', parent = root)
+            k += 1
+            char += 1
+        elif y == 0:
+            globals()[f'{k} : {motif[char]}'] = Node(f'{k} : {motif[char]}',parent=globals()[f'{k-1} : {motif[char-1]}'])
+            k += 1
+            char += 1
+        else:
+            globals()[f'{k} : {motif[char]}'] = Node(f'{k} : {motif[char]}',parent=globals()[f'{k-y} : {motif[char-1]}'])
+            k += 1
+            char += 1
+
+    return k
+
+def main():
+    maxlength = 0 # Sum of motifs length
+    motifList = []
+    motifLen = []
+    root = Node("root")
+    i = 0
+    j = 0
+    k = 0
+
+    for x in range(1, len(sys.argv)):
+        motifList += [sys.argv[x]]
+        maxlength += len(sys.argv[x])
+        motifLen += [len(sys.argv[x])]
+
+    tree = np.zeros((maxlength,MAXSIZE))
+
+    for motif in motifList:
+        tree, j = create_node(motif, tree, j, i, root)
+        k = create_graph(motif, root, i, k, motifList)
+        i += 1
+
+    DotExporter(root).to_picture("tree.png")
+
+    print(tree)
+    print("\n******************\n")
+
+if __name__ == "__main__":
+    main()
