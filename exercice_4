@@ -4,17 +4,21 @@
 Created on Sat Mar 19 11:25:53 2022
 
 @authors: Célia AIT OUARAB, Alizee ARNOUX and Chloé MASON
+
+- Motifs are given in argument, separated by " ".
+- The graphical output is set as "tree.png", in the working directory.
 """
 
 import sys
 import numpy as np
+from collections import defaultdict
 from anytree import Node
 from anytree.exporter import DotExporter
 
 MAXSIZE = 26 # alphabet size
 
 def create_node(motif, tree, j, i, root):
-    """Store character and motif position in a matrix.
+    """Store characters and motif position in a matrix.
 
     - Characters that are represented multiple times are stored on consecutive rows.
     - Each row represents a motif given in argument (except in multiple character case).
@@ -38,36 +42,50 @@ def create_node(motif, tree, j, i, root):
 
     return tree, j
 
-def create_graph(motif, root, i, k, motifList):
+def create_graph(motif, root, i, k, motifList, tree, dicChar):
+    """Create a visual dictionnary."""
     char = 0
+    index = 0
     while char < len(motif):
         y = 0
-        nextChar = False
+
+        # If the character is the first one and the motif NOT the first one,
+        # will check if there is already a node for the same character in the
+        # dictionnary.
+        # If true, will calculate the next value of k (stored in "index") and
+        # increase "char".
         if char == 0 and i != 0:
             x = 0
-            while x < i:
+            while x < i:    # For every motif already indexed
                 while y <= min(len(motifList[x])-1,len(motif)-1):
+
+                    # Find the deepest node that match another motif's suffixe,
+                    # break the loop when there is no immediate match or the
+                    # characters do not match anymore.
                     if motif[y] == motifList[x][y]:
+                        index = dicChar[motifList[x]][y]    # Search the node number of the matched character in the matching motif.
                         y += 1
                         char += 1
-                        i = motifList.index(motifList[x])
-                        nextChar = True
                     else:
                         break
                 x += 1
-        if char == 0 and nextChar is False:
-            globals()[f'{k} : {motif[char]}'] = Node(f'{k} : {motif[char]}', parent = root)
-            k += 1
-            char += 1
-        elif y == 0:
-            globals()[f'{k} : {motif[char]}'] = Node(f'{k} : {motif[char]}',parent=globals()[f'{k-1} : {motif[char-1]}'])
-            k += 1
-            char += 1
-        else:
-            globals()[f'{k} : {motif[char]}'] = Node(f'{k} : {motif[char]}',parent=globals()[f'{k-y} : {motif[char-1]}'])
+        if y != 0:  # If there was a matching pattern, connect to deepest node that match.
+            globals()[f'{k} : {motif[char]}'] = Node(f'{k} : {motif[char]}',parent=globals()[f'{index} : {motif[char-1]}'])
+            dicChar[motif].append(k)
             k += 1
             char += 1
 
+        elif char == 0 and y == 0:  # If the character is the first one with no matching pattern, connect to root.
+            globals()[f'{k} : {motif[char]}'] = Node(f'{k} : {motif[char]}', parent = root)
+            dicChar[motif].append(k)
+            k += 1
+            char += 1
+
+        else:   # If there is no matching and the character is not the first one of the motif, connect to previous node.
+            globals()[f'{k} : {motif[char]}'] = Node(f'{k} : {motif[char]}',parent=globals()[f'{k-1} : {motif[char-1]}'])
+            dicChar[motif].append(k)
+            k += 1
+            char += 1
     return k
 
 def main():
@@ -75,6 +93,7 @@ def main():
     motifList = []
     motifLen = []
     root = Node("root")
+    dicChar = defaultdict(list)
     i = 0
     j = 0
     k = 0
@@ -88,7 +107,7 @@ def main():
 
     for motif in motifList:
         tree, j = create_node(motif, tree, j, i, root)
-        k = create_graph(motif, root, i, k, motifList)
+        k = create_graph(motif, root, i, k, motifList, tree, dicChar)
         i += 1
 
     DotExporter(root).to_picture("tree.png")
