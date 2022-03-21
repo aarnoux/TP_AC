@@ -12,3 +12,5 @@ Utilisation script python de création et affichage d'un dictionnaire :
 	$ exercice_4.py <motif 1> <motif 2> ... <motif n>
 
 Un fichier tree.png est créé dans le dossier de travail.
+
+Le programme nécessite les packages suivants : numpy, collections et anytree
